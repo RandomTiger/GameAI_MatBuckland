@@ -79,8 +79,6 @@ public class FlockEntity : MonoBehaviour, IEntity
 
         RotateHeadingToFacePosition(transform.position + m_Velocity);
         transform.position += m_Velocity.magnitude * Heading * Time.deltaTime;
-
-        //transform.LookAt(transform.position + m_Velocity);
     }
 
     bool RotateHeadingToFacePosition(Vector3 target)
@@ -103,7 +101,7 @@ public class FlockEntity : MonoBehaviour, IEntity
         }
 
         Vector3 newHeading = Vector3.RotateTowards(Heading, toTarget, angle * Mathf.Deg2Rad * Time.fixedTime, 1.0f);
-        transform.LookAt(transform.position + newHeading);
+        LookAt(transform.position + newHeading);
         return false;
     }
 
@@ -113,5 +111,46 @@ public class FlockEntity : MonoBehaviour, IEntity
         Vector3 wander = transform.position + (Vector3)(transform.localToWorldMatrix * m_Steering.WanderTarget);
         Gizmos.DrawSphere(wander, 0.25f);
         Gizmos.DrawLine(transform.position, wander);
+    }
+
+    void LookAt(Vector3 target)
+    {
+    //    transform.LookAt(target);
+   //     transform.rotation = Quaternion.LookRotation(target - transform.position);
+        transform.rotation = LookAt(transform.position, target);
+    }
+
+    public static Quaternion LookAt(Vector3 sourcePoint, Vector3 destPoint)
+    {
+        Vector3 forwardVector = Vector3.Normalize(destPoint - sourcePoint);
+
+        float dot = Vector3.Dot(Vector3.forward, forwardVector);
+
+        if (Mathf.Abs(dot - (-1.0f)) < 0.000001f)
+        {
+            return new Quaternion(Vector3.up.x, Vector3.up.y, Vector3.up.z, Mathf.PI);
+        }
+        if (Mathf.Abs(dot - (1.0f)) < 0.000001f)
+        {
+            return Quaternion.identity;
+        }
+
+        float rotAngle = (float)Mathf.Acos(dot);
+        Vector3 rotAxis = Vector3.Cross(Vector3.forward, forwardVector);
+        rotAxis = Vector3.Normalize(rotAxis);
+        return CreateFromAxisAngle(rotAxis, rotAngle);
+    }
+
+    // just in case you need that function also
+    public static Quaternion CreateFromAxisAngle(Vector3 axis, float angle)
+    {
+        float halfAngle = angle * 0.5f;
+        float s = (float)System.Math.Sin(halfAngle);
+        Quaternion q;
+        q.x = axis.x * s;
+        q.y = axis.y * s;
+        q.z = axis.z * s;
+        q.w = (float)System.Math.Cos(halfAngle);
+        return q;
     }
 }
