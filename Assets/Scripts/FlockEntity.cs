@@ -13,13 +13,26 @@ public class EnumFlagAttribute : PropertyAttribute
     }
 }
 
-public class FlockEntity : MonoBehaviour
+public interface IEntity
+{
+    Vector3 Position
+    {
+        get;
+    }
+    int SPIndex
+    {
+        get; set;
+    }
+}
+
+public class FlockEntity : MonoBehaviour, IEntity
 {
     public Vector3 m_Velocity = Vector3.zero;
     public float m_Mass = 1;
     public float m_MaxSpeed = 10.0f;
     public float m_MaxForce = 10.0f;
     public float m_MaxTurnRate = 5.0f;
+    public float m_Sight = 10.0f;
     [EnumFlagAttribute] public SteeringBehaviour.Behaviour m_Behaviours;
 
     public float WeightSeparation = 1;
@@ -27,8 +40,15 @@ public class FlockEntity : MonoBehaviour
     public float WeightCohesion = 1;
     public float WeightWander = 1;
     public float WeightSeek = 1;
+    public float WeightFlee = 1;
 
-    public bool Tagged = true;
+    [HideInInspector] public bool Tagged = true;
+    private int m_SPIndex;
+    public int SPIndex
+    {
+        get { return m_SPIndex;  }
+        set { m_SPIndex = value; }
+    }
 
     public Vector3 Position
     {

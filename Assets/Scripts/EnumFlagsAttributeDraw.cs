@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System;
 using System.Reflection;
 using UnityEditor;
@@ -36,3 +37,4 @@ public class EnumFlagDrawer : PropertyDrawer {
 		return (T) reflectionTarget;
 	}
 }
+#endif

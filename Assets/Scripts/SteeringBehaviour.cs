@@ -6,14 +6,15 @@ public class SteeringBehaviour
     [System.Flags]
     public enum Behaviour
     {
-        separation = 1 << 0,
-        allignment = 1 << 1,
-        cohesion = 1 << 2,
-        wander = 1 << 3,
-        seek = 1 << 4,
+        flee = 1 << 0,
+        separation = 1 << 1,
+        allignment = 1 << 2,
+        cohesion = 1 << 3,
+        wander = 1 << 4,
+        seek = 1 << 5,
     }
 
-    Vector3 m_WanderTarget = Vector3.zero;
+    Vector3 m_WanderTarget = Vector3.forward;
     public Vector3 WanderTarget
     {
         get { return m_WanderTarget; }
@@ -42,6 +43,188 @@ public class SteeringBehaviour
     public bool On(Behaviour flag)
     {
         return (m_Behaviour & flag) == flag;
+    }
+
+
+
+    //---------------------- CalculatePrioritized ----------------------------
+    //
+    //  this method calls each active steering behavior in order of priority
+    //  and acumulates their forces until the max steering force magnitude
+    //  is reached, at which time the function returns the steering force 
+    //  accumulated to that  point
+    //------------------------------------------------------------------------
+    Vector3 CalculatePrioritized(FlockEntity entity, List<FlockEntity> nearby, Vector3 target)
+    {
+        Vector3 force;
+        /*
+        if (On(Behaviour.wall_avoidance))
+        {
+            force = WallAvoidance(m_pVehicle->World()->Walls()) *
+                    m_dWeightWallAvoidance;
+
+            if (!AccumulateForce(entity, ref m_vSteeringForce, force)) return m_SteeringForce;
+        }
+
+        if (On(Behaviour.obstacle_avoidance))
+        {
+            force = ObstacleAvoidance(m_pVehicle->World()->Obstacles()) *
+                    m_dWeightObstacleAvoidance;
+
+            if (!AccumulateForce(entity, ref m_vSteeringForce, force)) return m_SteeringForce;
+        }
+
+        if (On(Behaviour.evade))
+        {
+            assert(m_pTargetAgent1 && "Evade target not assigned");
+
+            force = Evade(m_pTargetAgent1) * m_dWeightEvade;
+
+            if (!AccumulateForce(entity, ref m_vSteeringForce, force)) return m_SteeringForce;
+        }
+        */
+
+        if (On(Behaviour.flee))
+        {
+            force = Flee(entity, target) * entity.WeightFlee;
+
+            if (!AccumulateForce(entity, ref m_SteeringForce, force)) return m_SteeringForce;
+        }
+
+
+
+        //these next three can be combined for flocking behavior (wander is
+        //also a good behavior to add into this mix)
+
+        if (On(Behaviour.separation))
+        {
+            force = Separation(entity, nearby) * entity.WeightSeparation;
+
+            if (!AccumulateForce(entity, ref m_SteeringForce, force)) return m_SteeringForce;
+        }
+
+        if (On(Behaviour.allignment))
+        {
+            force = Alignment(entity, nearby) * entity.WeightAlignment;
+
+            if (!AccumulateForce(entity, ref m_SteeringForce, force)) return m_SteeringForce;
+        }
+
+        if (On(Behaviour.cohesion))
+        {
+            force = Cohesion(entity, nearby) * entity.WeightCohesion;
+
+            if (!AccumulateForce(entity, ref m_SteeringForce, force)) return m_SteeringForce;
+        }
+
+        if (On(Behaviour.seek))
+        {
+            force = Seek(entity, target) * entity.WeightSeek;
+
+            if (!AccumulateForce(entity, ref m_SteeringForce, force)) return m_SteeringForce;
+        }
+
+        /*
+        if (On(Behaviour.arrive))
+        {
+            force = Arrive(m_pVehicle->World()->Crosshair(), m_Deceleration) * m_dWeightArrive;
+
+            if (!AccumulateForce(m_SteeringForce, force)) return m_SteeringForce;
+        }
+        */
+        if (On(Behaviour.wander))
+        {
+            force = Wander(entity) * entity.WeightWander;
+
+            if (!AccumulateForce(entity, ref m_SteeringForce, force)) return m_SteeringForce;
+        }
+        /*
+        if (On(Behaviour.pursuit))
+        {
+            assert(m_pTargetAgent1 && "pursuit target not assigned");
+
+            force = Pursuit(m_pTargetAgent1) * m_dWeightPursuit;
+
+            if (!AccumulateForce(m_SteeringForce, force)) return m_SteeringForce;
+        }
+
+        if (On(Behaviour.offset_pursuit))
+        {
+            assert(m_pTargetAgent1 && "pursuit target not assigned");
+            assert(!m_vOffset.isZero() && "No offset assigned");
+
+            force = OffsetPursuit(m_pTargetAgent1, m_vOffset);
+
+            if (!AccumulateForce(m_vSteeringForce, force)) return m_SteeringForce;
+        }
+
+        if (On(Behaviour.interpose))
+        {
+            Debug.Assert(m_pTargetAgent1 && m_pTargetAgent2, "Interpose agents not assigned");
+
+            force = Interpose(m_pTargetAgent1, m_pTargetAgent2) * m_dWeightInterpose;
+
+            if (!AccumulateForce(m_vSteeringForce, force)) return m_vSteeringForce;
+        }
+
+        if (On(Behaviour.hide))
+        {
+            assert(m_pTargetAgent1 && "Hide target not assigned");
+
+            force = Hide(m_pTargetAgent1, m_pVehicle->World()->Obstacles()) * m_dWeightHide;
+
+            if (!AccumulateForce(m_vSteeringForce, force)) return m_SteeringForce;
+        }
+
+
+        if (On(Behaviour.follow_path))
+        {
+            force = FollowPath() * m_dWeightFollowPath;
+
+            if (!AccumulateForce(m_vSteeringForce, force)) return m_SteeringForce;
+        }
+        */
+        return m_SteeringForce;
+    }
+
+
+
+    //--------------------- AccumulateForce ----------------------------------
+    //
+    //  This function calculates how much of its max steering force the 
+    //  vehicle has left to apply and then applies that amount of the
+    //  force to add.
+    //------------------------------------------------------------------------
+    bool AccumulateForce(FlockEntity entity, ref Vector3 RunningTot, Vector3 ForceToAdd)
+    {
+        //calculate how much steering force the vehicle has used so far
+        float MagnitudeSoFar = RunningTot.magnitude;
+
+        //calculate how much steering force remains to be used by this vehicle
+        float MagnitudeRemaining = entity.m_MaxForce - MagnitudeSoFar;
+
+        //return false if there is no more force left to use
+        if (MagnitudeRemaining <= 0.0) return false;
+
+        //calculate the magnitude of the force we want to add
+        float MagnitudeToAdd = ForceToAdd.magnitude;
+
+        //if the magnitude of the sum of ForceToAdd and the running total
+        //does not exceed the maximum force available to this vehicle, just
+        //add together. Otherwise add as much of the ForceToAdd vector is
+        //possible without going over the max.
+        if (MagnitudeToAdd < MagnitudeRemaining)
+        {
+            RunningTot += ForceToAdd;
+        }
+
+        else
+        {
+            //add it to the steering force
+            RunningTot += (Vector3.Normalize(ForceToAdd) * MagnitudeRemaining);
+        }
+
+        return true;
     }
 
     //---------------------- CalculateWeightedSum ----------------------------
@@ -76,12 +259,12 @@ public class SteeringBehaviour
         {
             m_SteeringForce += Seek(entity, target) * entity.WeightSeek;
         }
-        /*
+        
         if (On(Behaviour.flee))
         {
-            m_vSteeringForce += Flee(m_pVehicle->World()->Crosshair()) * m_dWeightFlee;
+            m_SteeringForce += Flee(entity, target) * entity.WeightFlee;
         }
-
+        /*
         if (On(Behaviour.arrive))
         {
             m_vSteeringForce += Arrive(m_pVehicle->World()->Crosshair(), m_Deceleration) * m_dWeightArrive;
@@ -107,6 +290,20 @@ public class SteeringBehaviour
         return m_SteeringForce;
     }
 
+    Vector3 Flee(FlockEntity entity, Vector3 TargetPos)
+    {
+        //only flee if the target is within 'panic distance'. Work in distance
+        //squared space.
+        /* const double PanicDistanceSq = 100.0f * 100.0;
+         if (Vec2DDistanceSq(m_pVehicle->Pos(), target) > PanicDistanceSq)
+         {
+           return Vector2D(0,0);
+         }
+         */
+
+        Vector3 DesiredVelocity = Vector3.Normalize(entity.Position - TargetPos) * entity.m_MaxSpeed;
+        return (DesiredVelocity - entity.m_Velocity);
+    }
 
     //---------------------------- Separation --------------------------------
     //
@@ -242,15 +439,9 @@ public class SteeringBehaviour
         //move the target into a position WanderDist in front of the agent
         Vector3 target = m_WanderTarget + new Vector3(0,0,m_WanderDistance);
 
-        target = (Vector3) (entity.transform.localToWorldMatrix * target);
- /*
-        //project the target into world space
-        Vector3 Target = PointToWorldSpace(target,
-                                             m_pVehicle->Heading(),
-                                             m_pVehicle->Side(),
-                                             m_pVehicle->Pos());
-*/
+        target = entity.transform.rotation * target;
+
         //and steer towards it
-        return target - entity.Position;
+        return target;
     }
 }

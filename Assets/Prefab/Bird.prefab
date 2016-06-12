@@ -108,12 +108,14 @@ MonoBehaviour:
   m_MaxSpeed: 20
   m_MaxForce: 10
   m_MaxTurnRate: 4.92
-  m_Behaviours: 8
+  m_Sight: 5
+  m_Behaviours: -2
   WeightSeparation: 2
   WeightAlignment: 1
   WeightCohesion: 1
-  WeightWander: 2
+  WeightWander: 1
   WeightSeek: 1
+  WeightFlee: 1
   Tagged: 1
 --- !u!135 &13539716
 SphereCollider:
